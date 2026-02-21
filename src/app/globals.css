@@ -1,26 +1,163 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0a0a12;
+  --foreground: #e7e5e4;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-lora);
+  --font-mono: var(--font-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-lora), Georgia, "Times New Roman", serif;
+}
+
+/* React Flow overrides */
+.react-flow__background {
+  background: transparent !important;
+}
+
+.react-flow__controls button {
+  background: rgba(28, 25, 23, 0.8) !important;
+  border: 1px solid rgba(120, 113, 108, 0.3) !important;
+  color: #e7e5e4 !important;
+  fill: #e7e5e4 !important;
+}
+
+.react-flow__controls button:hover {
+  background: rgba(41, 37, 36, 0.9) !important;
+}
+
+.react-flow__minimap {
+  background: rgba(26, 25, 23, 0.8) !important;
+  border: 1px solid rgba(120, 113, 108, 0.2) !important;
+  border-radius: 8px !important;
+}
+
+/* React Flow edge selection */
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #d6b068 !important;
+  stroke-width: 2 !important;
+}
+
+.react-flow__connection-line {
+  stroke: #78716c !important;
+  stroke-dasharray: 6 3 !important;
+  animation: connectionDash 0.5s linear infinite !important;
+}
+
+@keyframes connectionDash {
+  to {
+    stroke-dashoffset: -9;
+  }
+}
+
+/* Tiptap editor styles */
+.tiptap {
+  outline: none;
+  min-height: 300px;
+}
+
+.tiptap p {
+  margin: 0.5em 0;
+}
+
+.tiptap h1 { font-size: 1.875rem; font-weight: 700; margin: 0.75em 0 0.5em; font-family: var(--font-playfair), Georgia, serif; }
+.tiptap h2 { font-size: 1.5rem; font-weight: 600; margin: 0.75em 0 0.5em; font-family: var(--font-playfair), Georgia, serif; }
+.tiptap h3 { font-size: 1.25rem; font-weight: 600; margin: 0.75em 0 0.5em; font-family: var(--font-playfair), Georgia, serif; }
+
+.tiptap ul { list-style: disc; padding-left: 1.5em; margin: 0.5em 0; }
+.tiptap ol { list-style: decimal; padding-left: 1.5em; margin: 0.5em 0; }
+.tiptap li { margin: 0.25em 0; }
+
+.tiptap blockquote {
+  border-left: 3px solid #78716c;
+  padding-left: 1em;
+  margin: 0.5em 0;
+  color: #a8a29e;
+}
+
+.tiptap code {
+  background: rgba(120, 113, 108, 0.15);
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.9em;
+}
+
+.tiptap pre {
+  background: rgba(26, 25, 23, 0.8);
+  border: 1px solid rgba(120, 113, 108, 0.2);
+  border-radius: 8px;
+  padding: 1em;
+  margin: 0.5em 0;
+  overflow-x: auto;
+}
+
+.tiptap pre code {
+  background: none;
+  padding: 0;
+}
+
+.tiptap img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 1em 0;
+}
+
+.tiptap a {
+  color: #d6b068;
+  text-decoration: underline;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #57534e;
+  pointer-events: none;
+  height: 0;
+}
+
+.tiptap hr {
+  border: none;
+  border-top: 1px solid rgba(120, 113, 108, 0.2);
+  margin: 1.5em 0;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(120, 113, 108, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 113, 108, 0.5);
+}
+
+/* Cosmic nebula effect */
+.cosmic-nebula {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 600px 400px at 20% 30%, rgba(120, 113, 108, 0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 500px 350px at 75% 60%, rgba(214, 176, 104, 0.04) 0%, transparent 70%),
+    radial-gradient(ellipse 400px 300px at 50% 80%, rgba(168, 162, 158, 0.03) 0%, transparent 70%);
 }

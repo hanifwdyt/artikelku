@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Article {
+  id            String        @id @default(cuid())
+  title         String
+  slug          String        @unique
+  content       String        @default("{}")
+  contentHtml   String        @default("")
+  status        String        @default("draft")
+  positionX     Float         @default(0)
+  positionY     Float         @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  outgoingLinks ArticleLink[] @relation("outgoing")
+  incomingLinks ArticleLink[] @relation("incoming")
+}
+
+model ArticleLink {
+  id        String   @id @default(cuid())
+  sourceId  String
+  targetId  String
+  source    Article  @relation("outgoing", fields: [sourceId], references: [id], onDelete: Cascade)
+  target    Article  @relation("incoming", fields: [targetId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([sourceId, targetId])
+}
+
+model Settings {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
