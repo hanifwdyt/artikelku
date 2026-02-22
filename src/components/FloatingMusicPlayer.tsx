@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useMode } from "@/contexts/ModeContext";
 
 interface JamendoTrack {
   id: string;
@@ -27,6 +28,7 @@ export default function FloatingMusicPlayer() {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { mode } = useMode();
 
   // Search Jamendo API
   const searchTracks = useCallback(async (searchQuery: string) => {
@@ -173,6 +175,8 @@ export default function FloatingMusicPlayer() {
     </svg>
   );
 
+  const accentStyle = mode === "private" ? "#68b5d6" : "#d6b068";
+
   return (
     <>
       <audio ref={audioRef} preload="none" />
@@ -208,8 +212,14 @@ export default function FloatingMusicPlayer() {
             )}
             {isPlaying && (
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                <span
+                  className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                  style={{ backgroundColor: accentStyle }}
+                />
+                <span
+                  className="relative inline-flex rounded-full h-2 w-2"
+                  style={{ backgroundColor: accentStyle }}
+                />
               </span>
             )}
           </motion.button>
@@ -262,8 +272,11 @@ export default function FloatingMusicPlayer() {
                   onClick={handleSeek}
                 >
                   <div
-                    className="h-full bg-amber-500/80 rounded-full transition-all group-hover:bg-amber-400"
-                    style={{ width: duration ? `${(progress / duration) * 100}%` : "0%" }}
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: duration ? `${(progress / duration) * 100}%` : "0%",
+                      backgroundColor: `rgba(var(--accent-rgb), 0.8)`,
+                    }}
                   />
                 </div>
                 <div className="flex justify-between text-[10px] text-stone-600">
@@ -275,7 +288,10 @@ export default function FloatingMusicPlayer() {
                 <div className="flex items-center gap-3 mt-2">
                   <button
                     onClick={togglePlay}
-                    className="p-1.5 text-stone-300 hover:text-amber-400 transition-colors cursor-pointer"
+                    className="p-1.5 text-stone-300 transition-colors cursor-pointer"
+                    style={{ color: isPlaying ? accentStyle : undefined }}
+                    onMouseEnter={(e) => { e.currentTarget.style.color = accentStyle; }}
+                    onMouseLeave={(e) => { if (!isPlaying) e.currentTarget.style.color = ""; }}
                   >
                     {isPlaying ? <PauseIcon /> : <PlayIcon />}
                   </button>
@@ -290,7 +306,8 @@ export default function FloatingMusicPlayer() {
                       step="0.01"
                       value={volume}
                       onChange={(e) => setVolume(parseFloat(e.target.value))}
-                      className="flex-1 h-1 accent-amber-500 cursor-pointer"
+                      className="flex-1 h-1 cursor-pointer"
+                      style={{ accentColor: accentStyle }}
                     />
                   </div>
                 </div>
@@ -322,11 +339,25 @@ export default function FloatingMusicPlayer() {
                       <button
                         key={track.id}
                         onClick={() => playTrack(track)}
-                        className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors cursor-pointer ${
+                        className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left transition-colors cursor-pointer"
+                        style={
                           currentTrack?.id === track.id
-                            ? "bg-amber-500/10 text-amber-200"
-                            : "hover:bg-stone-700/30 text-stone-300"
-                        }`}
+                            ? {
+                                backgroundColor: `rgba(var(--accent-rgb), 0.1)`,
+                                color: `var(--accent-light)`,
+                              }
+                            : {}
+                        }
+                        onMouseEnter={(e) => {
+                          if (currentTrack?.id !== track.id) {
+                            e.currentTarget.style.backgroundColor = "rgba(120, 113, 108, 0.15)";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (currentTrack?.id !== track.id) {
+                            e.currentTarget.style.backgroundColor = "";
+                          }
+                        }}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
@@ -342,8 +373,14 @@ export default function FloatingMusicPlayer() {
                         </div>
                         {currentTrack?.id === track.id && isPlaying && (
                           <span className="relative flex h-1.5 w-1.5 shrink-0">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                            <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500" />
+                            <span
+                              className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                              style={{ backgroundColor: accentStyle }}
+                            />
+                            <span
+                              className="relative inline-flex rounded-full h-1.5 w-1.5"
+                              style={{ backgroundColor: accentStyle }}
+                            />
                           </span>
                         )}
                       </button>

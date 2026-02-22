@@ -21,6 +21,7 @@ import ArticleEditor from "./ArticleEditor";
 import CanvasToolbar from "./CanvasToolbar";
 import CosmicBackground from "./CosmicBackground";
 import VintageEdge from "./VintageEdge";
+import { useMode } from "@/contexts/ModeContext";
 import type { Article } from "@/types";
 
 const nodeTypes: NodeTypes = {
@@ -39,10 +40,11 @@ function CanvasInner() {
   const [editingNodeRect, setEditingNodeRect] = useState<DOMRect | null>(null);
   const reactFlowInstance = useReactFlow();
   const containerRef = useRef<HTMLDivElement>(null);
+  const { mode } = useMode();
 
   const fetchLinks = useCallback(async () => {
     try {
-      const res = await fetch("/api/links");
+      const res = await fetch(`/api/links?mode=${mode}`);
       if (!res.ok) return;
       const links = await res.json();
       const flowEdges: Edge[] = links.map((link: { id: string; sourceId: string; targetId: string }) => ({
@@ -55,10 +57,10 @@ function CanvasInner() {
     } catch {
       // links API might not be available yet
     }
-  }, [setEdges]);
+  }, [setEdges, mode]);
 
   const fetchArticles = useCallback(async () => {
-    const res = await fetch("/api/articles");
+    const res = await fetch(`/api/articles?mode=${mode}`);
     const data: Article[] = await res.json();
     setArticles(data);
 
@@ -76,7 +78,7 @@ function CanvasInner() {
 
     setNodes(flowNodes);
     await fetchLinks();
-  }, [setNodes, fetchLinks]);
+  }, [setNodes, fetchLinks, mode]);
 
   useEffect(() => {
     fetchArticles();
@@ -115,13 +117,14 @@ function CanvasInner() {
         title: "Untitled",
         positionX: centerX + offsetX,
         positionY: centerY + offsetY,
+        mode,
       }),
     });
 
     if (res.ok) {
       await fetchArticles();
     }
-  }, [reactFlowInstance, fetchArticles]);
+  }, [reactFlowInstance, fetchArticles, mode]);
 
   const handleNodeDragStop = useCallback(
     async (_event: React.MouseEvent, node: Node) => {

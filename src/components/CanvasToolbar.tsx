@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { useMode } from "@/contexts/ModeContext";
 
 interface CanvasToolbarProps {
   onNewArticle: () => void;
@@ -9,6 +10,7 @@ interface CanvasToolbarProps {
 
 export default function CanvasToolbar({ onNewArticle }: CanvasToolbarProps) {
   const router = useRouter();
+  const { mode, toggleMode, isFlipping } = useMode();
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -23,9 +25,41 @@ export default function CanvasToolbar({ onNewArticle }: CanvasToolbarProps) {
       className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2"
     >
       <div className="flex items-center gap-2 bg-[#1a1917]/80 backdrop-blur-xl border border-stone-500/25 rounded-xl px-3 py-2 shadow-lg shadow-stone-900/10">
-        <span className="text-sm font-semibold bg-gradient-to-r from-stone-300 to-amber-200 bg-clip-text text-transparent px-2 font-[family-name:var(--font-playfair)]">
+        <span className="text-sm font-semibold bg-clip-text text-transparent px-2 font-[family-name:var(--font-playfair)]" style={{ backgroundImage: `linear-gradient(to right, #d6d3d1, var(--accent-light))` }}>
           nulis
         </span>
+
+        <div className="w-px h-5 bg-stone-500/20" />
+
+        {/* Mode Switch Button */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={toggleMode}
+          disabled={isFlipping}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{
+            backgroundColor: `rgba(var(--accent-rgb), 0.1)`,
+            color: `var(--accent-light)`,
+          }}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 2v6h-6" />
+            <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+            <path d="M3 22v-6h6" />
+            <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+          </svg>
+          {mode === "public" ? "Public" : "Private"}
+        </motion.button>
 
         <div className="w-px h-5 bg-stone-500/20" />
 
@@ -33,9 +67,10 @@ export default function CanvasToolbar({ onNewArticle }: CanvasToolbarProps) {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onNewArticle}
-          className="px-3 py-1.5 text-sm bg-stone-700 hover:bg-stone-600 rounded-lg text-white transition-colors cursor-pointer"
+          className="px-3 py-1.5 text-sm rounded-lg text-white transition-colors cursor-pointer"
+          style={{ backgroundColor: `rgba(var(--accent-rgb), 0.2)` }}
         >
-          + New Article
+          {mode === "public" ? "+ New Article" : "+ New Entry"}
         </motion.button>
 
         <motion.button

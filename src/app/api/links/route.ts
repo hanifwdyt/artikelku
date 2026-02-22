@@ -2,13 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const isAuth = await verifySession();
   if (!isAuth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const mode = request.nextUrl.searchParams.get("mode");
+
   const links = await prisma.articleLink.findMany({
+    where: mode
+      ? {
+          source: { mode },
+          target: { mode },
+        }
+      : {},
     orderBy: { createdAt: "desc" },
   });
 

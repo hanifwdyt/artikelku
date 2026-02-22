@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import FlipContainer from "@/components/FlipContainer";
 
 const CanvasView = dynamic(() => import("@/components/CanvasView"), {
   ssr: false,
@@ -12,5 +13,9 @@ const CanvasView = dynamic(() => import("@/components/CanvasView"), {
 });
 
 export default function CanvasPage() {
-  return <CanvasView />;
+  return (
+    <FlipContainer>
+      <CanvasView />
+    </FlipContainer>
+  );
 }

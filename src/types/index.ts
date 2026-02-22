@@ -1,3 +1,5 @@
+export type AppMode = "public" | "private";
+
 export interface Article {
   id: string;
   title: string;
@@ -5,6 +7,7 @@ export interface Article {
   content: string;
   contentHtml: string;
   status: "draft" | "published";
+  mode: AppMode;
   positionX: number;
   positionY: number;
   createdAt: string;

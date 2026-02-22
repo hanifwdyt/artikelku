@@ -3,11 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
 import slugify from "slugify";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const isAuth = await verifySession();
+  const mode = request.nextUrl.searchParams.get("mode") || "public";
 
   const articles = await prisma.article.findMany({
-    where: isAuth ? {} : { status: "published" },
+    where: isAuth ? { mode } : { status: "published", mode },
     orderBy: { createdAt: "desc" },
   });
 
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { title, positionX, positionY } = await request.json();
+  const { title, positionX, positionY, mode } = await request.json();
 
   const baseSlug = slugify(title || "untitled", { lower: true, strict: true });
   let slug = baseSlug;
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
     data: {
       title: title || "Untitled",
       slug,
+      mode: mode || "public",
       positionX: positionX ?? 0,
       positionY: positionY ?? 0,
     },

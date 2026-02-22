@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Playfair_Display, Lora, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import FloatingMusicPlayerWrapper from "@/components/FloatingMusicPlayerWrapper";
+import { ModeProvider } from "@/contexts/ModeContext";
 
 const playfair = Playfair_Display({
   variable: "--font-playfair",
@@ -36,8 +37,10 @@ export default function RootLayout({
       <body
         className={`${playfair.variable} ${lora.variable} ${jetbrainsMono.variable} antialiased bg-[#0a0a12] text-stone-200`}
       >
-        {children}
-        <FloatingMusicPlayerWrapper />
+        <ModeProvider>
+          {children}
+          <FloatingMusicPlayerWrapper />
+        </ModeProvider>
       </body>
     </html>
   );

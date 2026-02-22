@@ -228,11 +228,20 @@ export default function ArticleEditor({
                 onClick={() =>
                   setStatus((s) => (s === "draft" ? "published" : "draft"))
                 }
-                className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+                className="px-3 py-1 text-xs font-medium rounded-lg transition-colors cursor-pointer border"
+                style={
                   status === "published"
-                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                    : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                }`}
+                    ? {
+                        backgroundColor: "rgba(16, 185, 129, 0.2)",
+                        color: "#34d399",
+                        borderColor: "rgba(16, 185, 129, 0.3)",
+                      }
+                    : {
+                        backgroundColor: `rgba(var(--accent-rgb), 0.2)`,
+                        color: `var(--accent-light)`,
+                        borderColor: `rgba(var(--accent-rgb), 0.3)`,
+                      }
+                }
               >
                 {status}
               </motion.button>
@@ -307,7 +316,14 @@ export default function ArticleEditor({
                       <button
                         key={a.id}
                         onClick={() => addReference(a.id)}
-                        className="w-full text-left px-3 py-1.5 text-xs text-stone-300 hover:bg-stone-700/50 hover:text-amber-200 transition-colors cursor-pointer"
+                        className="w-full text-left px-3 py-1.5 text-xs text-stone-300 hover:bg-stone-700/50 transition-colors cursor-pointer"
+                        style={{ }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = `var(--accent-light)`;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = "";
+                        }}
                       >
                         {a.title}
                       </button>
