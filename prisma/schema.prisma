@@ -15,6 +15,8 @@ model Article {
   contentHtml   String        @default("")
   status        String        @default("draft")
   mode          String        @default("public")
+  author        String        @default("")
+  authorEmail   String        @default("")
   positionX     Float         @default(0)
   positionY     Float         @default(0)
   createdAt     DateTime      @default(now())

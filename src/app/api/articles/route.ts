@@ -1,15 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { isAuthenticated } from "@/lib/auth";
+import { isAuthenticated, getAuthUser } from "@/lib/auth";
 import slugify from "slugify";
 
 export async function GET(request: NextRequest) {
   const isAuth = await isAuthenticated(request);
-  const mode = request.nextUrl.searchParams.get("mode") || "public";
+  const { searchParams } = request.nextUrl;
+  const mode = searchParams.get("mode") || "public";
+  const authorFilter = searchParams.get("author"); // filter by author name/email
+
+  const where: Record<string, unknown> = isAuth
+    ? { mode }
+    : { status: "published", mode };
+
+  if (authorFilter) {
+    where.OR = [
+      { author: { contains: authorFilter } },
+      { authorEmail: { contains: authorFilter } },
+    ];
+  }
 
   const articles = await prisma.article.findMany({
-    where: isAuth ? { mode } : { status: "published", mode },
+    where,
     orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      contentHtml: true,
+      status: true,
+      mode: true,
+      author: true,
+      authorEmail: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   });
 
   return NextResponse.json(articles);
@@ -21,7 +46,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { title, positionX, positionY, mode } = await request.json();
+  // Extract author from Bearer token if present
+  const authUser = await getAuthUser(request);
+
+  const { title, positionX, positionY, mode, author, authorEmail } = await request.json();
 
   const baseSlug = slugify(title || "untitled", { lower: true, strict: true });
   let slug = baseSlug;
@@ -37,6 +65,9 @@ export async function POST(request: NextRequest) {
       title: title || "Untitled",
       slug,
       mode: mode || "public",
+      // Author from JWT token takes priority; fallback to body; fallback to empty
+      author: authUser?.name || author || "",
+      authorEmail: authUser?.email || authorEmail || "",
       positionX: positionX ?? 0,
       positionY: positionY ?? 0,
     },

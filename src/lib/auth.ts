@@ -78,16 +78,20 @@ export async function verifyBearerToken(token: string): Promise<UserPayload | nu
 // Accepts both cookie session (web UI) and Authorization: Bearer <token> (API)
 
 export async function isAuthenticated(request: NextRequest): Promise<boolean> {
-  // Check Bearer token first
+  const user = await getAuthUser(request);
+  if (user) return true;
+  return verifySession();
+}
+
+// Returns user payload if authenticated via Bearer token, null otherwise.
+// Use this when you need author info (e.g. when creating articles).
+export async function getAuthUser(request: NextRequest): Promise<UserPayload | null> {
   const authHeader = request.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.slice(7);
-    const user = await verifyBearerToken(token);
-    if (user) return true;
+    return verifyBearerToken(token);
   }
-
-  // Fall back to cookie session
-  return verifySession();
+  return null;
 }
 
 // Legacy — kept for backward compat

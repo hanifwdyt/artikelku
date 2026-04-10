@@ -35,10 +35,7 @@ export async function PUT(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const article = await prisma.article.findUnique({
-    where: { slug },
-  });
-
+  const article = await prisma.article.findUnique({ where: { slug } });
   if (!article) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -50,17 +47,15 @@ export async function PUT(
     updateData.title = body.title;
     const newSlug = slugify(body.title, { lower: true, strict: true });
     if (newSlug && newSlug !== slug) {
-      const existing = await prisma.article.findUnique({
-        where: { slug: newSlug },
-      });
-      if (!existing) {
-        updateData.slug = newSlug;
-      }
+      const existing = await prisma.article.findUnique({ where: { slug: newSlug } });
+      if (!existing) updateData.slug = newSlug;
     }
   }
   if (body.content !== undefined) updateData.content = body.content;
   if (body.contentHtml !== undefined) updateData.contentHtml = body.contentHtml;
   if (body.status !== undefined) updateData.status = body.status;
+  if (body.author !== undefined) updateData.author = body.author;
+  if (body.authorEmail !== undefined) updateData.authorEmail = body.authorEmail;
   if (body.positionX !== undefined) updateData.positionX = body.positionX;
   if (body.positionY !== undefined) updateData.positionY = body.positionY;
 
@@ -82,15 +77,11 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const article = await prisma.article.findUnique({
-    where: { slug },
-  });
-
+  const article = await prisma.article.findUnique({ where: { slug } });
   if (!article) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   await prisma.article.delete({ where: { slug } });
-
   return NextResponse.json({ success: true });
 }
