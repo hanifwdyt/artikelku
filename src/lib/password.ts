@@ -2,7 +2,7 @@
 // Format: "pbkdf2:<saltHex>:<hashHex>"
 // Legacy SHA-256 format (plain hex string) is still verifiable for backward compat
 
-async function derivePbkdf2(password: string, salt: Uint8Array): Promise<string> {
+async function derivePbkdf2(password: string, salt: Uint8Array<ArrayBuffer>): Promise<string> {
   const enc = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
@@ -20,7 +20,7 @@ async function derivePbkdf2(password: string, salt: Uint8Array): Promise<string>
 }
 
 export async function hashPassword(password: string): Promise<string> {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const salt = crypto.getRandomValues(new Uint8Array(new ArrayBuffer(16)));
   const saltHex = [...salt].map((b) => b.toString(16).padStart(2, "0")).join("");
   const hashHex = await derivePbkdf2(password, salt);
   return `pbkdf2:${saltHex}:${hashHex}`;
@@ -29,7 +29,10 @@ export async function hashPassword(password: string): Promise<string> {
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   if (stored.startsWith("pbkdf2:")) {
     const [, saltHex, hashHex] = stored.split(":");
-    const salt = new Uint8Array(saltHex.match(/.{2}/g)!.map((b) => parseInt(b, 16)));
+    const saltBytes = saltHex.match(/.{2}/g)!.map((b) => parseInt(b, 16));
+    const saltBuf = new ArrayBuffer(saltBytes.length);
+    const salt = new Uint8Array(saltBuf);
+    salt.set(saltBytes);
     const computed = await derivePbkdf2(password, salt);
     // Constant-time comparison to prevent timing attacks
     if (computed.length !== hashHex.length) return false;
