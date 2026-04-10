@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
       title: true,
       slug: true,
       contentHtml: true,
+      chartData: true,
       status: true,
       mode: true,
       author: true,
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
   // Extract author from Bearer token if present
   const authUser = await getAuthUser(request);
 
-  const { title, positionX, positionY, mode, author, authorEmail } = await request.json();
+  const { title, positionX, positionY, mode, author, authorEmail, chartData } = await request.json();
 
   const baseSlug = slugify(title || "untitled", { lower: true, strict: true });
   let slug = baseSlug;
@@ -68,6 +69,7 @@ export async function POST(request: NextRequest) {
       // Author from JWT token takes priority; fallback to body; fallback to empty
       author: authUser?.name || author || "",
       authorEmail: authUser?.email || authorEmail || "",
+      chartData: chartData ? JSON.stringify(chartData) : "",
       positionX: positionX ?? 0,
       positionY: positionY ?? 0,
     },

@@ -56,6 +56,7 @@ export async function PUT(
   if (body.status !== undefined) updateData.status = body.status;
   if (body.author !== undefined) updateData.author = body.author;
   if (body.authorEmail !== undefined) updateData.authorEmail = body.authorEmail;
+  if (body.chartData !== undefined) updateData.chartData = typeof body.chartData === "string" ? body.chartData : JSON.stringify(body.chartData);
   if (body.positionX !== undefined) updateData.positionX = body.positionX;
   if (body.positionY !== undefined) updateData.positionY = body.positionY;
 

@@ -17,6 +17,7 @@ model Article {
   mode          String        @default("public")
   author        String        @default("")
   authorEmail   String        @default("")
+  chartData     String        @default("")
   positionX     Float         @default(0)
   positionY     Float         @default(0)
   createdAt     DateTime      @default(now())
