@@ -5,16 +5,36 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import CosmicBackground from "@/components/CosmicBackground";
 
-export default function LoginPage() {
+type Tab = "login" | "register";
+
+export default function AuthPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [hasAccount, setHasAccount] = useState<boolean | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+
+  const [tab, setTab] = useState<Tab>("login");
   const [checking, setChecking] = useState(true);
 
+  // Login state
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+
+  // Register state
+  const [regName, setRegName] = useState("");
+  const [regEmail, setRegEmail] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+  const [regConfirm, setRegConfirm] = useState("");
+
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [retryAfter, setRetryAfter] = useState(0); // countdown seconds
+
+  // Countdown timer for rate limit
+  useEffect(() => {
+    if (retryAfter <= 0) return;
+    const t = setTimeout(() => setRetryAfter((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [retryAfter]);
+
+  // Check auth status on mount
   useEffect(() => {
     fetch("/api/auth/status")
       .then((r) => r.json())
@@ -23,67 +43,99 @@ export default function LoginPage() {
           router.push("/canvas");
           return;
         }
-        setHasAccount(data.hasAccount);
+        // No account yet → default to register tab
+        if (!data.hasAccount) setTab("register");
         setChecking(false);
-      });
+      })
+      .catch(() => setChecking(false));
   }, [router]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    try {
-      if (hasAccount) {
-        // Login with email + password
-        const res = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-        const data = await res.json();
-        if (!res.ok) { setError(data.error); setLoading(false); return; }
-      } else {
-        // First-time setup — register via User model
-        const res = await fetch("/api/auth/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, name }),
-        });
-        const data = await res.json();
-        if (!res.ok) { setError(data.error); setLoading(false); return; }
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+    });
 
-        // Register returns a Bearer token but we need a cookie session — call login after
-        const loginRes = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
-        });
-        if (!loginRes.ok) {
-          setError("Registered but failed to log in. Try refreshing.");
-          setLoading(false);
-          return;
-        }
-      }
-
-      router.push("/canvas");
-    } catch {
-      setError("Something went wrong");
+    if (res.status === 429) {
+      const retry = Number(res.headers.get("Retry-After") ?? 60);
+      setRetryAfter(retry);
+      setError(`Too many attempts. Try again in ${retry}s.`);
       setLoading(false);
+      return;
     }
+
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error ?? "Login failed");
+      setLoading(false);
+      return;
+    }
+
+    router.push("/canvas");
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (regPassword.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
+    if (regPassword !== regConfirm) {
+      setError("Passwords don't match");
+      return;
+    }
+
+    setLoading(true);
+
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: regEmail, password: regPassword, name: regName }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error ?? "Registration failed");
+      setLoading(false);
+      return;
+    }
+
+    // Auto-login after register
+    const loginRes = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: regEmail, password: regPassword }),
+    });
+
+    if (!loginRes.ok) {
+      setError("Account created. Please log in.");
+      setTab("login");
+      setLoginEmail(regEmail);
+      setLoading(false);
+      return;
+    }
+
+    router.push("/canvas");
   };
 
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <CosmicBackground />
-        <motion.div
+        <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="relative z-10 text-stone-400"
+          className="relative z-10 text-stone-500 text-sm tracking-widest"
         >
-          Loading...
-        </motion.div>
+          ...
+        </motion.p>
       </div>
     );
   }
@@ -92,127 +144,164 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
       <CosmicBackground />
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key="login-form"
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -20, scale: 0.95 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="relative z-10 w-full max-w-sm px-4"
-        >
-          <motion.div
-            className="bg-[#1a1917]/80 backdrop-blur-xl border border-stone-500/25 rounded-2xl p-8 shadow-2xl shadow-stone-900/30"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
-          >
-            <motion.h1
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="text-3xl font-bold text-center mb-2 bg-gradient-to-r from-stone-300 to-amber-200 bg-clip-text text-transparent font-[family-name:var(--font-playfair)]"
-            >
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="relative z-10 w-full max-w-sm px-4"
+      >
+        <div className="bg-[#1a1917]/85 backdrop-blur-xl border border-stone-500/20 rounded-2xl shadow-2xl shadow-stone-950/50 overflow-hidden">
+
+          {/* Header */}
+          <div className="px-8 pt-8 pb-4 text-center">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-stone-300 to-amber-200 bg-clip-text text-transparent font-[family-name:var(--font-playfair)]">
               nulis
-            </motion.h1>
+            </h1>
+            <p className="text-stone-500 text-xs mt-1 tracking-wide">
+              your personal writing space
+            </p>
+          </div>
 
-            <motion.p
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="text-sm text-stone-400 text-center mb-8"
-            >
-              {hasAccount
-                ? "Sign in to continue"
-                : "Create your account to get started"}
-            </motion.p>
+          {/* Tabs */}
+          <div className="flex mx-8 mt-2 mb-6 bg-[#111110] rounded-xl p-1 gap-1">
+            {(["login", "register"] as Tab[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => { setTab(t); setError(""); }}
+                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all capitalize cursor-pointer ${
+                  tab === t
+                    ? "bg-stone-700 text-stone-100 shadow"
+                    : "text-stone-500 hover:text-stone-300"
+                }`}
+              >
+                {t === "login" ? "Sign In" : "Register"}
+              </button>
+            ))}
+          </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3">
-              {/* Name — only shown during setup */}
-              <AnimatePresence>
-                {!hasAccount && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
+          {/* Forms */}
+          <div className="px-8 pb-8">
+            <AnimatePresence mode="wait">
+
+              {/* ── Login ── */}
+              {tab === "login" && (
+                <motion.form
+                  key="login"
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 12 }}
+                  transition={{ duration: 0.2 }}
+                  onSubmit={handleLogin}
+                  className="space-y-3"
+                >
+                  <input
+                    type="email"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    placeholder="Email"
+                    required
+                    autoFocus
+                    className="w-full px-4 py-3 bg-[#292524]/60 border border-stone-600/20 rounded-xl text-stone-200 placeholder-stone-600 focus:outline-none focus:border-stone-500/50 focus:ring-1 focus:ring-stone-500/20 transition-all text-sm"
+                  />
+                  <input
+                    type="password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder="Password"
+                    required
+                    className="w-full px-4 py-3 bg-[#292524]/60 border border-stone-600/20 rounded-xl text-stone-200 placeholder-stone-600 focus:outline-none focus:border-stone-500/50 focus:ring-1 focus:ring-stone-500/20 transition-all text-sm"
+                  />
+
+                  <ErrorMessage error={error} />
+
+                  <button
+                    type="submit"
+                    disabled={loading || !loginEmail || !loginPassword || retryAfter > 0}
+                    className="w-full mt-1 py-3 bg-stone-700 hover:bg-stone-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl text-sm font-medium text-white transition-colors cursor-pointer"
                   >
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Your name"
-                      className="w-full px-4 py-3 bg-[#292524]/60 border border-stone-500/25 rounded-xl text-stone-200 placeholder-stone-500 focus:outline-none focus:border-stone-400/50 focus:ring-1 focus:ring-stone-400/30 transition-all"
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                    {loading ? "Signing in..." : retryAfter > 0 ? `Try again in ${retryAfter}s` : "Sign In"}
+                  </button>
+                </motion.form>
+              )}
 
-              {/* Email */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-              >
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Email"
-                  required
-                  autoFocus
-                  className="w-full px-4 py-3 bg-[#292524]/60 border border-stone-500/25 rounded-xl text-stone-200 placeholder-stone-500 focus:outline-none focus:border-stone-400/50 focus:ring-1 focus:ring-stone-400/30 transition-all"
-                />
-              </motion.div>
+              {/* ── Register ── */}
+              {tab === "register" && (
+                <motion.form
+                  key="register"
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -12 }}
+                  transition={{ duration: 0.2 }}
+                  onSubmit={handleRegister}
+                  className="space-y-3"
+                >
+                  <input
+                    type="text"
+                    value={regName}
+                    onChange={(e) => setRegName(e.target.value)}
+                    placeholder="Your name"
+                    required
+                    autoFocus
+                    className="w-full px-4 py-3 bg-[#292524]/60 border border-stone-600/20 rounded-xl text-stone-200 placeholder-stone-600 focus:outline-none focus:border-stone-500/50 focus:ring-1 focus:ring-stone-500/20 transition-all text-sm"
+                  />
+                  <input
+                    type="email"
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                    placeholder="Email"
+                    required
+                    className="w-full px-4 py-3 bg-[#292524]/60 border border-stone-600/20 rounded-xl text-stone-200 placeholder-stone-600 focus:outline-none focus:border-stone-500/50 focus:ring-1 focus:ring-stone-500/20 transition-all text-sm"
+                  />
+                  <input
+                    type="password"
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    placeholder="Password (min. 8 characters)"
+                    required
+                    className="w-full px-4 py-3 bg-[#292524]/60 border border-stone-600/20 rounded-xl text-stone-200 placeholder-stone-600 focus:outline-none focus:border-stone-500/50 focus:ring-1 focus:ring-stone-500/20 transition-all text-sm"
+                  />
+                  <input
+                    type="password"
+                    value={regConfirm}
+                    onChange={(e) => setRegConfirm(e.target.value)}
+                    placeholder="Confirm password"
+                    required
+                    className="w-full px-4 py-3 bg-[#292524]/60 border border-stone-600/20 rounded-xl text-stone-200 placeholder-stone-600 focus:outline-none focus:border-stone-500/50 focus:ring-1 focus:ring-stone-500/20 transition-all text-sm"
+                  />
 
-              {/* Password */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.45 }}
-              >
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={hasAccount ? "Password" : "Password (min. 8 characters)"}
-                  required
-                  className="w-full px-4 py-3 bg-[#292524]/60 border border-stone-500/25 rounded-xl text-stone-200 placeholder-stone-500 focus:outline-none focus:border-stone-400/50 focus:ring-1 focus:ring-stone-400/30 transition-all"
-                />
-              </motion.div>
+                  <ErrorMessage error={error} />
 
-              <AnimatePresence>
-                {error && (
-                  <motion.p
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="text-red-400 text-sm"
+                  <button
+                    type="submit"
+                    disabled={loading || !regName || !regEmail || !regPassword || !regConfirm}
+                    className="w-full mt-1 py-3 bg-stone-700 hover:bg-stone-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl text-sm font-medium text-white transition-colors cursor-pointer"
                   >
-                    {error}
-                  </motion.p>
-                )}
-              </AnimatePresence>
+                    {loading ? "Creating account..." : "Create Account"}
+                  </button>
+                </motion.form>
+              )}
 
-              <motion.button
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                type="submit"
-                disabled={loading || !email || !password}
-                className="w-full mt-1 px-4 py-3 bg-stone-700 hover:bg-stone-600 disabled:bg-stone-700/50 disabled:cursor-not-allowed rounded-xl font-medium text-white transition-colors cursor-pointer"
-              >
-                {loading
-                  ? "..."
-                  : hasAccount
-                    ? "Sign In"
-                    : "Create Account"}
-              </motion.button>
-            </form>
-          </motion.div>
-        </motion.div>
-      </AnimatePresence>
+            </AnimatePresence>
+          </div>
+        </div>
+      </motion.div>
     </div>
+  );
+}
+
+function ErrorMessage({ error }: { error: string }) {
+  return (
+    <AnimatePresence>
+      {error && (
+        <motion.p
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          className="text-red-400 text-xs px-1"
+        >
+          {error}
+        </motion.p>
+      )}
+    </AnimatePresence>
   );
 }
