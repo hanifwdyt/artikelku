@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { NextRequest } from "next/server";
 
 const secret = new TextEncoder().encode(
   process.env.JWT_SECRET || "nulis-secret-key-change-in-production"
@@ -7,12 +8,13 @@ const secret = new TextEncoder().encode(
 
 const COOKIE_NAME = "nulis-session";
 
+// ─── Cookie-based session (web UI) ────────────────────────────────────────────
+
 export async function createSession(): Promise<string> {
-  const token = await new SignJWT({ authenticated: true })
+  return new SignJWT({ authenticated: true })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("7d")
     .sign(secret);
-  return token;
 }
 
 export async function verifySession(): Promise<boolean> {
@@ -33,7 +35,7 @@ export async function setSessionCookie(token: string) {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 7, // 7 days
+    maxAge: 60 * 60 * 24 * 7,
     path: "/",
   });
 }
@@ -43,6 +45,52 @@ export async function clearSessionCookie() {
   cookieStore.delete(COOKIE_NAME);
 }
 
+// ─── Bearer token (external API) ──────────────────────────────────────────────
+
+export interface UserPayload {
+  userId: string;
+  email: string;
+  name: string;
+}
+
+export async function createUserToken(payload: UserPayload): Promise<string> {
+  return new SignJWT({ ...payload, type: "api" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setExpirationTime("30d")
+    .sign(secret);
+}
+
+export async function verifyBearerToken(token: string): Promise<UserPayload | null> {
+  try {
+    const { payload } = await jwtVerify(token, secret);
+    if (payload.type !== "api") return null;
+    return {
+      userId: payload.userId as string,
+      email: payload.email as string,
+      name: payload.name as string,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ─── Unified auth check for API routes ────────────────────────────────────────
+// Accepts both cookie session (web UI) and Authorization: Bearer <token> (API)
+
+export async function isAuthenticated(request: NextRequest): Promise<boolean> {
+  // Check Bearer token first
+  const authHeader = request.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.slice(7);
+    const user = await verifyBearerToken(token);
+    if (user) return true;
+  }
+
+  // Fall back to cookie session
+  return verifySession();
+}
+
+// Legacy — kept for backward compat
 export async function verifyToken(token: string): Promise<boolean> {
   try {
     await jwtVerify(token, secret);

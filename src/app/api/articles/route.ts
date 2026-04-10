@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifySession } from "@/lib/auth";
+import { isAuthenticated } from "@/lib/auth";
 import slugify from "slugify";
 
 export async function GET(request: NextRequest) {
-  const isAuth = await verifySession();
+  const isAuth = await isAuthenticated(request);
   const mode = request.nextUrl.searchParams.get("mode") || "public";
 
   const articles = await prisma.article.findMany({
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const isAuth = await verifySession();
+  const isAuth = await isAuthenticated(request);
   if (!isAuth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

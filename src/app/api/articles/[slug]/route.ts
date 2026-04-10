@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifySession } from "@/lib/auth";
+import { isAuthenticated } from "@/lib/auth";
 import slugify from "slugify";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
-  const isAuth = await verifySession();
+  const isAuth = await isAuthenticated(request);
 
   const article = await prisma.article.findUnique({
     where: { slug },
@@ -30,7 +30,7 @@ export async function PUT(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
-  const isAuth = await verifySession();
+  const isAuth = await isAuthenticated(request);
   if (!isAuth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -73,11 +73,11 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
-  const isAuth = await verifySession();
+  const isAuth = await isAuthenticated(request);
   if (!isAuth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
