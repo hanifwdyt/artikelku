@@ -4,25 +4,30 @@ import { verifyPassword } from "@/lib/password";
 import { createSession, setSessionCookie } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
-  const passwordSetting = await prisma.settings.findUnique({
-    where: { key: "password_hash" },
-  });
+  const body = await request.json().catch(() => null);
+  const { email, password } = body ?? {};
 
-  if (!passwordSetting) {
+  if (!email || !password) {
     return NextResponse.json(
-      { error: "Password not set up yet" },
+      { error: "Email and password are required" },
       { status: 400 }
     );
   }
 
-  const { password } = await request.json();
+  const user = await prisma.user.findUnique({
+    where: { email: String(email).toLowerCase().trim() },
+  });
 
-  const valid = await verifyPassword(password, passwordSetting.value);
-
-  if (!valid) {
-    return NextResponse.json({ error: "Wrong password" }, { status: 401 });
+  if (!user) {
+    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
+  const valid = await verifyPassword(String(password), user.passwordHash);
+  if (!valid) {
+    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+  }
+
+  // Set cookie session for web UI
   const token = await createSession();
   await setSessionCookie(token);
 

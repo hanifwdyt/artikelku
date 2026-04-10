@@ -7,8 +7,10 @@ import CosmicBackground from "@/components/CosmicBackground";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [hasPassword, setHasPassword] = useState<boolean | null>(null);
+  const [name, setName] = useState("");
+  const [hasAccount, setHasAccount] = useState<boolean | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -21,7 +23,7 @@ export default function LoginPage() {
           router.push("/canvas");
           return;
         }
-        setHasPassword(data.hasPassword);
+        setHasAccount(data.hasAccount);
         setChecking(false);
       });
   }, [router]);
@@ -32,19 +34,36 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const endpoint = hasPassword ? "/api/auth/login" : "/api/auth/setup";
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
+      if (hasAccount) {
+        // Login with email + password
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) { setError(data.error); setLoading(false); return; }
+      } else {
+        // First-time setup — register via User model
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, name }),
+        });
+        const data = await res.json();
+        if (!res.ok) { setError(data.error); setLoading(false); return; }
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error);
-        setLoading(false);
-        return;
+        // Register returns a Bearer token but we need a cookie session — call login after
+        const loginRes = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+        if (!loginRes.ok) {
+          setError("Registered but failed to log in. Try refreshing.");
+          setLoading(false);
+          return;
+        }
       }
 
       router.push("/canvas");
@@ -103,24 +122,61 @@ export default function LoginPage() {
               transition={{ delay: 0.3 }}
               className="text-sm text-stone-400 text-center mb-8"
             >
-              {hasPassword
-                ? "Enter your password to continue"
-                : "Set up your password to get started"}
+              {hasAccount
+                ? "Sign in to continue"
+                : "Create your account to get started"}
             </motion.p>
 
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              {/* Name — only shown during setup */}
+              <AnimatePresence>
+                {!hasAccount && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                  >
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Your name"
+                      className="w-full px-4 py-3 bg-[#292524]/60 border border-stone-500/25 rounded-xl text-stone-200 placeholder-stone-500 focus:outline-none focus:border-stone-400/50 focus:ring-1 focus:ring-stone-400/30 transition-all"
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Email */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
               >
                 <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email"
+                  required
+                  autoFocus
+                  className="w-full px-4 py-3 bg-[#292524]/60 border border-stone-500/25 rounded-xl text-stone-200 placeholder-stone-500 focus:outline-none focus:border-stone-400/50 focus:ring-1 focus:ring-stone-400/30 transition-all"
+                />
+              </motion.div>
+
+              {/* Password */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.45 }}
+              >
+                <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder={hasPassword ? "Password" : "Create a password"}
+                  placeholder={hasAccount ? "Password" : "Password (min. 8 characters)"}
+                  required
                   className="w-full px-4 py-3 bg-[#292524]/60 border border-stone-500/25 rounded-xl text-stone-200 placeholder-stone-500 focus:outline-none focus:border-stone-400/50 focus:ring-1 focus:ring-stone-400/30 transition-all"
-                  autoFocus
                 />
               </motion.div>
 
@@ -130,7 +186,7 @@ export default function LoginPage() {
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="text-red-400 text-sm mt-2"
+                    className="text-red-400 text-sm"
                   >
                     {error}
                   </motion.p>
@@ -144,14 +200,14 @@ export default function LoginPage() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 type="submit"
-                disabled={loading || !password}
-                className="w-full mt-4 px-4 py-3 bg-stone-700 hover:bg-stone-600 disabled:bg-stone-700/50 disabled:cursor-not-allowed rounded-xl font-medium text-white transition-colors cursor-pointer"
+                disabled={loading || !email || !password}
+                className="w-full mt-1 px-4 py-3 bg-stone-700 hover:bg-stone-600 disabled:bg-stone-700/50 disabled:cursor-not-allowed rounded-xl font-medium text-white transition-colors cursor-pointer"
               >
                 {loading
                   ? "..."
-                  : hasPassword
-                    ? "Enter"
-                    : "Set Password"}
+                  : hasAccount
+                    ? "Sign In"
+                    : "Create Account"}
               </motion.button>
             </form>
           </motion.div>
