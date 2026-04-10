@@ -2,8 +2,12 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret && process.env.NODE_ENV === "production") {
+  throw new Error("JWT_SECRET environment variable must be set in production");
+}
 const secret = new TextEncoder().encode(
-  process.env.JWT_SECRET || "nulis-secret-key-change-in-production"
+  jwtSecret ?? "nulis-secret-key-change-in-production"
 );
 
 const COOKIE_NAME = "nulis-session";
