@@ -146,6 +146,16 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
         Code Block
       </ToolbarButton>
 
+      <ToolbarButton
+        onClick={() => {
+          editor.chain().focus().setCodeBlock({ language: "mermaid" }).run();
+        }}
+        active={editor.isActive("codeBlock", { language: "mermaid" })}
+        title="Mermaid diagram (flowchart, sequence, etc.)"
+      >
+        Diagram
+      </ToolbarButton>
+
       <div className="w-px h-5 bg-stone-500/15 mx-1" />
 
       <ToolbarButton
