@@ -140,18 +140,22 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
       </ToolbarButton>
       <ToolbarButton
         onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-        active={editor.isActive("codeBlock")}
-        title="Code block"
+        active={editor.isActive("codeBlock") && !editor.isActive("codeBlock", { language: "mermaid" })}
+        title="Code block (use language selector inside)"
       >
-        Code Block
+        {"{ } Code"}
       </ToolbarButton>
 
       <ToolbarButton
         onClick={() => {
-          editor.chain().focus().setCodeBlock({ language: "mermaid" }).run();
+          if (editor.isActive("codeBlock")) {
+            editor.chain().focus().updateAttributes("codeBlock", { language: "mermaid" }).run();
+          } else {
+            editor.chain().focus().setCodeBlock({ language: "mermaid" }).run();
+          }
         }}
         active={editor.isActive("codeBlock", { language: "mermaid" })}
-        title="Mermaid diagram (flowchart, sequence, etc.)"
+        title="Mermaid diagram (live preview)"
       >
         Diagram
       </ToolbarButton>
