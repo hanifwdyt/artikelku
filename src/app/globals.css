@@ -150,6 +150,40 @@ body {
   margin: 1.5em 0;
 }
 
+/* Code block wrapper (NodeView) */
+.tiptap .code-block-wrapper {
+  margin: 0.75em 0;
+}
+
+.tiptap .code-block-wrapper pre {
+  margin: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+/* highlight.js token colors (dark theme, github-dark inspired) */
+.tiptap .hljs,
+.mermaid-preview svg text,
+pre code.hljs { color: #c9d1d9; }
+.hljs-comment, .hljs-quote { color: #8b949e; font-style: italic; }
+.hljs-keyword, .hljs-selector-tag, .hljs-tag, .hljs-built_in { color: #ff7b72; }
+.hljs-string, .hljs-attr, .hljs-template-tag { color: #a5d6ff; }
+.hljs-number, .hljs-literal, .hljs-meta { color: #79c0ff; }
+.hljs-title, .hljs-name, .hljs-section, .hljs-class .hljs-title, .hljs-function .hljs-title { color: #d2a8ff; }
+.hljs-variable, .hljs-template-variable, .hljs-attribute { color: #ffa657; }
+.hljs-symbol, .hljs-bullet, .hljs-link, .hljs-formula { color: #a5d6ff; }
+.hljs-type, .hljs-params { color: #ffa657; }
+.hljs-deletion { color: #ffa198; background-color: #490202; }
+.hljs-addition { color: #7ee787; background-color: #04260f; }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: bold; }
+
+/* Mermaid preview styling */
+.mermaid-preview svg {
+  max-width: 100%;
+  height: auto;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

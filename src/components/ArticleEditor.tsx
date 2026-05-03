@@ -1,14 +1,25 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import Link from "@tiptap/extension-link";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import { common, createLowlight } from "lowlight";
 import EditorToolbar from "./EditorToolbar";
+import MermaidNodeView from "./MermaidNodeView";
 import type { Article, ArticleLink } from "@/types";
+
+const lowlight = createLowlight(common);
+
+const CustomCodeBlock = CodeBlockLowlight.extend({
+  addNodeView() {
+    return ReactNodeViewRenderer(MermaidNodeView);
+  },
+}).configure({ lowlight, defaultLanguage: "plaintext" });
 
 interface ArticleEditorProps {
   article: Article;
@@ -32,6 +43,9 @@ export default function ArticleEditor({
   const [refSearch, setRefSearch] = useState("");
   const [showRefDropdown, setShowRefDropdown] = useState(false);
   const [linksLoaded, setLinksLoaded] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const initialLoadRef = useRef(true);
 
   const otherArticles = useMemo(
     () => allArticles.filter((a) => a.id !== article.id),
@@ -88,7 +102,8 @@ export default function ArticleEditor({
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
-      StarterKit,
+      StarterKit.configure({ codeBlock: false }),
+      CustomCodeBlock,
       Image.configure({ inline: false }),
       Placeholder.configure({ placeholder: "Start writing..." }),
       Link.configure({ openOnClick: false }),
@@ -107,7 +122,26 @@ export default function ArticleEditor({
         class: "tiptap prose-invert focus:outline-none min-h-[300px]",
       },
     },
+    onUpdate: () => {
+      setIsDirty(true);
+    },
   });
+
+  useEffect(() => {
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false;
+      return;
+    }
+    setIsDirty(true);
+  }, [title, status]);
+
+  useEffect(() => {
+    if (!linksLoaded) return;
+    const refsChanged =
+      references.length !== originalRefs.length ||
+      references.some((r) => !originalRefs.includes(r));
+    if (refsChanged) setIsDirty(true);
+  }, [references, originalRefs, linksLoaded]);
 
   const syncReferences = useCallback(async () => {
     const toAdd = references.filter((r) => !originalRefs.includes(r));
@@ -139,26 +173,60 @@ export default function ArticleEditor({
     }
   }, [references, originalRefs, article.id]);
 
+  const persist = useCallback(
+    async (override?: { status?: "draft" | "published" }) => {
+      if (!editor) return false;
+      const content = JSON.stringify(editor.getJSON());
+      const contentHtml = editor.getHTML();
+      const finalStatus = override?.status ?? status;
+
+      const res = await fetch(`/api/articles/${article.slug}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, content, contentHtml, status: finalStatus }),
+      });
+
+      if (!res.ok) return false;
+
+      if (linksLoaded) {
+        await syncReferences();
+        setOriginalRefs(references);
+      }
+      setLastSavedAt(new Date());
+      setIsDirty(false);
+      return true;
+    },
+    [editor, title, status, article.slug, syncReferences, linksLoaded, references]
+  );
+
   const handleSave = useCallback(async () => {
-    if (!editor) return;
     setSaving(true);
-
-    const content = JSON.stringify(editor.getJSON());
-    const contentHtml = editor.getHTML();
-
-    await fetch(`/api/articles/${article.slug}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, content, contentHtml, status }),
-    });
-
-    if (linksLoaded) {
-      await syncReferences();
-    }
-
+    const ok = await persist();
     setSaving(false);
-    onClose();
-  }, [editor, title, status, article.slug, onClose, syncReferences, linksLoaded]);
+    if (ok) onClose();
+  }, [persist, onClose]);
+
+  // Auto-save tiap 30 detik kalau dirty
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isDirty && !saving && editor) {
+        persist();
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [isDirty, saving, editor, persist]);
+
+  // Warning kalau ada perubahan belum disimpan
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
 
   const handleDelete = useCallback(async () => {
     if (!confirm("Delete this article?")) return;
@@ -353,8 +421,55 @@ export default function ArticleEditor({
               {deleting ? "Deleting..." : "Delete"}
             </motion.button>
 
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-stone-600">Cmd+S to save</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-stone-600">
+                {saving
+                  ? "Saving…"
+                  : isDirty
+                  ? "Unsaved changes"
+                  : lastSavedAt
+                  ? `Saved ${lastSavedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                  : "Cmd+S to save"}
+              </span>
+              {status !== "published" ? (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={async () => {
+                    setSaving(true);
+                    setStatus("published");
+                    const ok = await persist({ status: "published" });
+                    setSaving(false);
+                    if (ok) onClose();
+                  }}
+                  disabled={saving}
+                  className="px-4 py-2 text-sm rounded-lg font-medium transition-colors cursor-pointer disabled:opacity-50"
+                  style={{
+                    backgroundColor: "rgba(16, 185, 129, 0.85)",
+                    color: "#fff",
+                  }}
+                  title="Publish to blog.hanif.app"
+                >
+                  Publish to Blog
+                </motion.button>
+              ) : (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={async () => {
+                    setSaving(true);
+                    setStatus("draft");
+                    const ok = await persist({ status: "draft" });
+                    setSaving(false);
+                    if (ok) onClose();
+                  }}
+                  disabled={saving}
+                  className="px-4 py-2 text-sm rounded-lg text-stone-300 border border-stone-500/30 hover:bg-stone-700/40 transition-colors cursor-pointer disabled:opacity-50"
+                  title="Unpublish — kembali ke draft"
+                >
+                  Unpublish
+                </motion.button>
+              )}
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
