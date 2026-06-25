@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifySession } from "@/lib/auth";
 import { writeFile } from "fs/promises";
 import path from "path";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { getR2Client, R2_BUCKET, R2_PUBLIC_BASE, R2_PREFIX } from "@/lib/r2";
 
 // Whitelist MIME types + their canonical extensions
 const ALLOWED: Record<string, string> = {
@@ -60,9 +62,30 @@ export async function POST(request: NextRequest) {
 
   const ext = ALLOWED[mime];
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
+
+  // ── Cloudflare R2 (preferred — persistent across redeploys) ──
+  const r2 = getR2Client();
+  if (r2) {
+    const key = `${R2_PREFIX}/${filename}`;
+    try {
+      await r2.send(
+        new PutObjectCommand({
+          Bucket: R2_BUCKET,
+          Key: key,
+          Body: buffer,
+          ContentType: mime,
+          CacheControl: "public, max-age=31536000, immutable",
+        })
+      );
+      return NextResponse.json({ url: `${R2_PUBLIC_BASE}/${key}` });
+    } catch (err) {
+      console.error("R2 upload failed:", err);
+      return NextResponse.json({ error: "Upload failed" }, { status: 502 });
+    }
+  }
+
+  // ── Local disk fallback (dev / R2 not configured) ───────────
   const filepath = path.join(process.cwd(), "public", "uploads", filename);
-
   await writeFile(filepath, buffer);
-
   return NextResponse.json({ url: `/uploads/${filename}` });
 }

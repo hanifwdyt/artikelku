@@ -135,8 +135,8 @@ const endpoints = [
     method: "POST",
     path: "/api/upload",
     auth: true,
-    description: "Upload an image file. Returns the public URL.",
-    response: `{ "url": "/uploads/1234567890-abc123.png" }`,
+    description: "Upload an image file (max 10MB; JPEG/PNG/GIF/WebP/AVIF). Stored on Cloudflare R2; returns the public URL.",
+    response: `{ "url": "https://img.hanif.app/nulis/1234567890-abc123.png" }`,
     curl: `curl -X POST http://localhost:3000/api/upload \\
   -b cookies.txt \\
   -F "file=@image.png"`,
