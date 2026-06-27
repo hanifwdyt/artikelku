@@ -6,6 +6,8 @@ import { useCallback, useRef } from "react";
 
 interface EditorToolbarProps {
   editor: Editor | null;
+  isAutoScrolling?: boolean;
+  onToggleAutoScroll?: () => void;
 }
 
 function ToolbarButton({
@@ -35,7 +37,7 @@ function ToolbarButton({
   );
 }
 
-export default function EditorToolbar({ editor }: EditorToolbarProps) {
+export default function EditorToolbar({ editor, isAutoScrolling, onToggleAutoScroll }: EditorToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -188,6 +190,19 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
       >
         &mdash;
       </ToolbarButton>
+
+      {onToggleAutoScroll && (
+        <>
+          <div className="w-px h-5 bg-stone-500/15 mx-1" />
+          <ToolbarButton
+            onClick={onToggleAutoScroll}
+            active={isAutoScrolling}
+            title={isAutoScrolling ? "Pause auto-scroll (click)" : "Auto-scroll"}
+          >
+            {isAutoScrolling ? "⏸" : "▶"}
+          </ToolbarButton>
+        </>
+      )}
 
       <input
         ref={fileInputRef}

@@ -45,7 +45,9 @@ export default function ArticleEditor({
   const [linksLoaded, setLinksLoaded] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [isAutoScrolling, setIsAutoScrolling] = useState(false);
   const initialLoadRef = useRef(true);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const otherArticles = useMemo(
     () => allArticles.filter((a) => a.id !== article.id),
@@ -248,6 +250,33 @@ export default function ArticleEditor({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose, handleSave]);
 
+  // Auto-scroll: smooth rAF loop, pause on click or when reaching bottom
+  useEffect(() => {
+    if (!isAutoScrolling) return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    let animId: number;
+    let accum = 0;
+
+    const step = () => {
+      accum += 0.4; // px per frame @ 60fps ≈ 24px/s
+      if (accum >= 1) {
+        const px = Math.floor(accum);
+        container.scrollTop += px;
+        accum -= px;
+      }
+      if (container.scrollTop + container.clientHeight >= container.scrollHeight - 2) {
+        setIsAutoScrolling(false);
+        return;
+      }
+      animId = requestAnimationFrame(step);
+    };
+
+    animId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animId);
+  }, [isAutoScrolling]);
+
   const originX = nodeRect
     ? (nodeRect.x + nodeRect.width / 2) / window.innerWidth
     : 0.5;
@@ -331,8 +360,16 @@ export default function ArticleEditor({
           </div>
 
           {/* Editor */}
-          <div className="flex-1 overflow-y-auto p-5">
-            <EditorToolbar editor={editor} />
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 overflow-y-auto p-5"
+            onMouseDown={() => isAutoScrolling && setIsAutoScrolling(false)}
+          >
+            <EditorToolbar
+              editor={editor}
+              isAutoScrolling={isAutoScrolling}
+              onToggleAutoScroll={() => setIsAutoScrolling((v) => !v)}
+            />
             <EditorContent editor={editor} />
           </div>
 
